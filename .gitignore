@@ -1,0 +1,25 @@
+# Nuxt
+.nuxt
+.output
+.data
+.nitro
+.cache
+
+# Node
+node_modules
+*.log
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editor
+.DS_Store
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea
+
+# Netlify
+.netlify
