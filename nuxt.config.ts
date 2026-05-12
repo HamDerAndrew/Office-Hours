@@ -42,10 +42,10 @@ export default defineNuxtConfig({
 
   routeRules: {
     // Personalized by user timezone — render on each request, no caching.
+    // Office detail pages live at the root (`/<slug>`) and inherit SSR via
+    // the Nuxt default; `/about` and `/contact` are prerendered below and
+    // take priority over the dynamic `[slug]` route.
     '/': { ssr: true },
-    // Office detail pages: personalized by timezone + opt-in coordinates,
-    // and their status/schedule shift over the day — render per request.
-    '/offices/**': { ssr: true },
     // Static marketing pages: build-time render.
     '/about': { prerender: true },
     '/contact': { prerender: true },

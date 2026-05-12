@@ -47,7 +47,7 @@ const localityLabel = computed(() => {
   return label && label.length > 0 ? label : props.office.city
 })
 
-const detailHref = computed(() => `/offices/${officeSlug(props.office.name)}`)
+const detailHref = computed(() => `/${officeSlug(props.office.name)}`)
 </script>
 
 <template>

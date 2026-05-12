@@ -68,7 +68,7 @@ const statusLine = computed(() => {
   <article class="office-detail">
     <div class="container">
       <nav class="back-row" aria-label="Breadcrumb">
-        <NuxtLink to="/#offices" class="back-link">
+        <NuxtLink to="/" class="back-link">
           <span aria-hidden="true">←</span>
           <span>Back to offices</span>
         </NuxtLink>
@@ -87,7 +87,7 @@ const statusLine = computed(() => {
           <button type="button" class="btn btn-ghost" @click="refresh()">
             Retry
           </button>
-          <NuxtLink to="/#offices" class="btn btn-primary">
+          <NuxtLink to="/" class="btn btn-primary">
             See all offices
           </NuxtLink>
         </div>
