@@ -1,6 +1,23 @@
 import type { DailySchedule, OfficeDetail } from '~/types/umbraco'
 
 /**
+ * Resolve "today" as a YYYY-MM-DD string in the given IANA zone, falling
+ * back to the system's UTC date if `Intl` rejects the zone.
+ */
+export function todayInZone(timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date())
+  } catch {
+    return new Date().toISOString().slice(0, 10)
+  }
+}
+
+/**
  * Returns the schedule entry for "today" relative to the user's timezone if
  * one is resolved, otherwise the office's own timezone.
  *
@@ -11,19 +28,21 @@ export function findTodaySchedule(
   office: OfficeDetail,
   userTimezone: string | null,
 ): DailySchedule | null {
-  const tz = userTimezone ?? office.timezone
-  let isoDate: string
-  try {
-    isoDate = new Intl.DateTimeFormat('en-CA', {
-      timeZone: tz,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date())
-  } catch {
-    isoDate = new Date().toISOString().slice(0, 10)
-  }
+  const isoDate = todayInZone(userTimezone ?? office.timezone)
   return office.schedule.find((d) => d.date === isoDate) ?? null
+}
+
+/**
+ * Find the next entry in the rolling schedule (from `fromDate` inclusive)
+ * that the office is actually open on — skipping both regularly-closed
+ * days and override closures (holidays). Returns `null` when the visible
+ * window contains no open day.
+ */
+export function findNextOpenDay(
+  schedule: ReadonlyArray<DailySchedule>,
+  fromDate: string,
+): DailySchedule | null {
+  return schedule.find((d) => d.date >= fromDate && !d.isClosed) ?? null
 }
 
 /**

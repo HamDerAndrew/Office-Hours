@@ -4,6 +4,7 @@ import {
   OfficesListResponseSchema,
   type OfficeDetail,
 } from '~/types/umbraco'
+import { getStatusBucket } from '~/utils/officeStatus'
 
 export interface OfficesWithHours {
   countries: string[]
@@ -21,13 +22,17 @@ export interface OfficesWithHours {
  * Re-runs when the user's resolved timezone changes.
  */
 export function useOfficesWithHours() {
-  const { timezone } = storeToRefs(useUserContextStore())
+  const { timezone, coords } = storeToRefs(useUserContextStore())
 
   return useAsyncData<OfficesWithHours>(
     'offices-with-hours',
     async () => {
       const query: Record<string, string> = {}
       if (timezone.value) query.timezone = timezone.value
+      if (coords.value) {
+        query.lat = String(coords.value.lat)
+        query.lng = String(coords.value.lng)
+      }
 
       const list = OfficesListResponseSchema.parse(
         await $fetch('/api/offices', { query }),
@@ -40,8 +45,17 @@ export function useOfficesWithHours() {
         }),
       )
 
+      // Sort by availability for the visitor: open → about-to-open →
+      // about-to-close → closed. Stable sort keeps Umbraco's order within
+      // each bucket. The buckets are derived from `status`, which the API
+      // already computes against the visitor's timezone, so the resulting
+      // order shifts as the visitor's location changes.
+      offices.sort(
+        (a, b) => getStatusBucket(a.status) - getStatusBucket(b.status),
+      )
+
       return { countries: list.countries, offices }
     },
-    { watch: [timezone] },
+    { watch: [timezone, coords] },
   )
 }

@@ -3,6 +3,7 @@ const userContext = useUserContextStore()
 
 onMounted(() => {
   userContext.detectTimezone()
+  void userContext.restoreLocationIfGranted()
 })
 </script>
 

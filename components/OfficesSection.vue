@@ -2,12 +2,41 @@
 import { storeToRefs } from 'pinia'
 
 const { data, pending, error, refresh } = await useOfficesWithHours()
-const { timezone } = storeToRefs(useUserContextStore())
+const userContext = useUserContextStore()
+const { timezone, coords, geolocationStatus } = storeToRefs(userContext)
 
 const offices = computed(() => data.value?.offices ?? [])
 const hasOffices = computed(() => offices.value.length > 0)
 
-const tzLabel = computed(() => timezone.value ?? 'office local time')
+const isLocating = computed(() => geolocationStatus.value === 'pending')
+const hasLocation = computed(() => coords.value !== null)
+
+const locationButtonLabel = computed(() => {
+  if (isLocating.value) return 'Locating…'
+  if (hasLocation.value) return 'Hide distances'
+  return 'Show distance from me'
+})
+
+const locationMessage = computed(() => {
+  switch (geolocationStatus.value) {
+    case 'denied':
+      return 'Location blocked. Enable it in your browser settings to see distances.'
+    case 'unavailable':
+      return "Your browser doesn't support geolocation."
+    case 'error':
+      return "We couldn't read your location. Try again in a moment."
+    default:
+      return null
+  }
+})
+
+function onLocationToggle(): void {
+  if (hasLocation.value) {
+    userContext.clearLocation()
+    return
+  }
+  void userContext.requestLocation()
+}
 </script>
 
 <template>
@@ -16,12 +45,30 @@ const tzLabel = computed(() => timezone.value ?? 'office local time')
       <header class="header">
         <div class="header-text">
           <span class="eyebrow">Where we work</span>
-          <h2>Offices in your timezone</h2>
+          <h2>Offices around the world</h2>
           <p class="lead">
             We're a distributed practice with hubs across Europe and beyond.
-            Hours below are shown in
-            <strong class="tz-pill">{{ tzLabel }}</strong>
-            so you always know who's online when you need them.
+            Each card shows when an office opens or closes next, counted from
+            where you are — so you always know who's online when you need them.
+          </p>
+        </div>
+        <div class="location-control">
+          <button
+            type="button"
+            class="btn btn-ghost"
+            :disabled="isLocating"
+            :aria-pressed="hasLocation"
+            @click="onLocationToggle"
+          >
+            {{ locationButtonLabel }}
+          </button>
+          <p
+            v-if="locationMessage"
+            class="location-message"
+            role="status"
+            aria-live="polite"
+          >
+            {{ locationMessage }}
           </p>
         </div>
       </header>
@@ -75,25 +122,33 @@ const tzLabel = computed(() => timezone.value ?? 'office local time')
 
 .header {
   margin-block-end: var(--space-7);
-  max-inline-size: 56rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-5);
 }
 
 .header-text {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  max-inline-size: 56rem;
+  flex: 1 1 28rem;
 }
 
-.tz-pill {
-  display: inline-block;
-  padding: 0 var(--space-2);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  font-family: var(--font-mono);
-  font-size: 0.85em;
-  color: var(--color-text);
+.location-control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.location-message {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  max-inline-size: 22rem;
 }
 
 .office-grid {

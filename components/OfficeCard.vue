@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import type { OfficeDetail } from '~/types/umbraco'
 import { findTodaySchedule, formatHoursRange } from '~/utils/officeSchedule'
+import { formatDistance } from '~/utils/distance'
+import { officeSlug } from '~/utils/officeSlug'
 
 const props = defineProps<{
   office: OfficeDetail
   userTimezone: string | null
 }>()
+
+const distanceLabel = computed(() =>
+  props.office.distanceMeters !== null
+    ? formatDistance(props.office.distanceMeters)
+    : null,
+)
 
 const today = computed(() =>
   findTodaySchedule(props.office, props.userTimezone),
@@ -34,20 +42,20 @@ const statusLine = computed(() => {
   return status.statusText
 })
 
-const upcoming = computed(() =>
-  props.office.schedule
-    .filter((d) => d.date > (today.value?.date ?? ''))
-    .slice(0, 3),
-)
-
 const localityLabel = computed(() => {
   const label = props.office.label?.trim()
   return label && label.length > 0 ? label : props.office.city
 })
+
+const detailHref = computed(() => `/offices/${officeSlug(props.office.name)}`)
 </script>
 
 <template>
-  <article class="office-card surface" :aria-labelledby="`office-${office.id}`">
+  <NuxtLink
+    :to="detailHref"
+    class="office-card surface"
+    :aria-labelledby="`office-${office.id}`"
+  >
     <header class="card-head">
       <div>
         <p class="country">{{ office.country }}</p>
@@ -71,30 +79,20 @@ const localityLabel = computed(() => {
         <dt>Status</dt>
         <dd>{{ statusLine }}</dd>
       </div>
-      <div class="meta-row">
-        <dt>Timezone</dt>
-        <dd class="mono">{{ office.timezone }}</dd>
+      <div v-if="distanceLabel" class="meta-row">
+        <dt>Distance</dt>
+        <dd>
+          <span>{{ distanceLabel }}</span>
+          <span class="distance-hint">from your location</span>
+        </dd>
       </div>
     </dl>
 
-    <details v-if="upcoming.length" class="upcoming">
-      <summary>Upcoming days</summary>
-      <ul role="list" class="upcoming-list">
-        <li v-for="d in upcoming" :key="d.date">
-          <span class="day">{{ d.dayOfWeek }}</span>
-          <span class="hours">
-            <template v-if="d.isOverride && d.overrideLabel">
-              {{ d.overrideLabel }}
-            </template>
-            <template v-else-if="!d.isClosed && d.open && d.close">
-              {{ d.open }} – {{ d.close }}
-            </template>
-            <template v-else>Closed</template>
-          </span>
-        </li>
-      </ul>
-    </details>
-  </article>
+    <p class="view-details" aria-hidden="true">
+      <span>View office details</span>
+      <span class="arrow">→</span>
+    </p>
+  </NuxtLink>
 </template>
 
 <style scoped>
@@ -104,21 +102,30 @@ const localityLabel = computed(() => {
   flex-direction: column;
   gap: var(--space-4);
   container-type: inline-size;
+  color: inherit;
+  text-decoration: none;
   transition:
     box-shadow var(--duration-base) var(--ease-out),
     transform var(--duration-base) var(--ease-out),
     border-color var(--duration-base) var(--ease-out);
 }
 
-.office-card:hover {
+.office-card:hover,
+.office-card:focus-visible {
   box-shadow: var(--shadow-md);
   border-color: var(--color-border-strong);
   transform: translateY(-2px);
 }
 
+.office-card:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .office-card,
-  .office-card:hover {
+  .office-card:hover,
+  .office-card:focus-visible {
     transition: none;
     transform: none;
   }
@@ -178,6 +185,12 @@ const localityLabel = computed(() => {
   color: var(--color-text-subtle);
 }
 
+.distance-hint {
+  margin-inline-start: var(--space-2);
+  color: var(--color-text-subtle);
+  font-size: var(--text-xs);
+}
+
 .override {
   display: inline-flex;
   padding: 2px var(--space-2);
@@ -189,62 +202,34 @@ const localityLabel = computed(() => {
   letter-spacing: 0.02em;
 }
 
-.mono {
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  color: var(--color-text-muted);
-}
-
-.upcoming {
+.view-details {
   margin-block-start: auto;
-  border-block-start: 1px dashed var(--color-border);
   padding-block-start: var(--space-3);
-}
-
-.upcoming summary {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  list-style: none;
+  border-block-start: 1px dashed var(--color-border);
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding-block: var(--space-2);
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-accent-strong);
 }
 
-.upcoming summary::-webkit-details-marker {
-  display: none;
-}
-
-.upcoming summary::after {
-  content: '+';
-  margin-inline-start: auto;
-  font-size: var(--text-base);
-  color: var(--color-text-subtle);
+.view-details .arrow {
   transition: transform var(--duration-base) var(--ease-out);
 }
 
-.upcoming[open] summary::after {
-  content: '–';
+.office-card:hover .view-details .arrow,
+.office-card:focus-visible .view-details .arrow {
+  transform: translateX(3px);
 }
 
-.upcoming-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding-block-start: var(--space-2);
-}
-
-.upcoming-list li {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
-}
-
-.upcoming-list .day {
-  color: var(--color-text-subtle);
+@media (prefers-reduced-motion: reduce) {
+  .view-details .arrow,
+  .office-card:hover .view-details .arrow,
+  .office-card:focus-visible .view-details .arrow {
+    transition: none;
+    transform: none;
+  }
 }
 
 @container (min-width: 22rem) {
